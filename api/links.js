@@ -5,7 +5,7 @@ import cheerio from "cheerio";
 import Cors from "cors";
 
 const cors = Cors({
-  origin: ["https://fe-locket-tdtu.vercel.app", "http://localhost:5173"],
+  origin: ["https://fe-locket-tdtu.vercel.app", "http://localhost:5173", "https://locket-tdtu.wangtech.top"],
   methods: ["GET", "POST", "OPTIONS"],
   credentials: true,
 });
