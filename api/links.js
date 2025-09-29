@@ -2,7 +2,7 @@ import dbConnect from "../lib/mongodb.js";
 import applyCors from "../lib/cors.js";
 import Link from "../models/Link.js";
 import jwt from "jsonwebtoken";
-import cheerio from "cheerio";
+import { load } from "cheerio";
 
 const PASSWORD_RE = /^[A-Za-z0-9](?:25|24|23|22|21)[A-Za-z0-9]\d{4}$/;
 
@@ -49,12 +49,13 @@ export default async function handler(req, res) {
         });
       }
 
-      const text = await resp.text();
 
-      // Check for expected Locket marker or profile image
-      const hasMarker = /Add me on Locket/i.test(text);
-      const $ = cheerio.load(text);
-      const img = $(".profile-pic-img").attr("src");
+  const text = await resp.text();
+
+  // Check for expected Locket marker or profile image
+  const hasMarker = /Add me on Locket/i.test(text);
+  const $ = load(text);
+  const img = $(".profile-pic-img").attr("src");
 
       if (!hasMarker && !img) {
         return res.status(400).json({
