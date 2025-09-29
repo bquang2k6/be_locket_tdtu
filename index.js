@@ -9,7 +9,7 @@ app.use(cors());
 // Hoặc chỉ cho frontend domain của bạn
 app.use(
   cors({
-    origin: ["https://be-locket-tdtu.vercel.app"], // domain frontend
+    origin: ["https://fe-locket-tdtu.vercel.app"], // domain frontend
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
