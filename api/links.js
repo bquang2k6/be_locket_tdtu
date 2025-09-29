@@ -7,7 +7,7 @@ const PASSWORD_RE = /^[A-Za-z0-9](?:25|24|23|22|21)[A-Za-z0-9]\d{4}$/;
 
 export default async function handler(req, res) {
   await dbConnect();
-  await applyCors(req, res);  // 👉 luôn chạy CORS trước
+//   await applyCors(req, res);  // 👉 luôn chạy CORS trước
 
   if (req.method === "POST") {
     // Check JWT
