@@ -3,9 +3,13 @@ import jwt from "jsonwebtoken";
 import Cors from "cors";
 
 const cors = Cors({
-  origin: ["https://fe-locket-tdtu.vercel.app", "http://localhost:5173", "https://locket-tdtu.wangtech.top"],
+  origin: [
+    "https://fe-locket-tdtu.vercel.app",
+    "http://localhost:5173",
+    "https://locket-tdtu.wangtech.top",
+  ],
   methods: ["GET", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"], // thêm dòng này tránh lỗi 403 không có Authorization
+  allowedHeaders: ["Content-Type", "Authorization"], // 👈 rất quan trọng
   credentials: true,
 });
 
@@ -20,6 +24,11 @@ function runMiddleware(req, res, fn) {
 
 export default async function handler(req, res) {
   await runMiddleware(req, res, cors);
+
+  // 👇 xử lý preflight request của browser
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
 
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
