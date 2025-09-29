@@ -37,19 +37,42 @@ export default async function handler(req, res) {
 
     let avatarUrl = null;
     try {
+      // Helpful debug log (avoid logging sensitive fields like password)
+      console.debug("api/links: fetching normalized link", { link: normalizedLink, name });
+
       const resp = await fetch(normalizedLink);
-      if (!resp.ok) return res.status(400).json({ error: "Vui lòng kiểm tra lại id hoặc link" });
-      const text = await resp.text();
-      if (!/Add me on Locket/i.test(text)) {
-        return res.status(400).json({ error: "Vui lòng kiểm tra lại id hoặc link" });
+      if (!resp.ok) {
+        // Provide a short detail to help debugging in development — safe info only
+        return res.status(400).json({
+          error: "Vui lòng kiểm tra lại id hoặc link",
+          detail: `fetch failed with status ${resp.status} ${resp.statusText}`,
+        });
       }
+
+      const text = await resp.text();
+
+      // Check for expected Locket marker or profile image
+      const hasMarker = /Add me on Locket/i.test(text);
       const $ = cheerio.load(text);
       const img = $(".profile-pic-img").attr("src");
+
+      if (!hasMarker && !img) {
+        return res.status(400).json({
+          error: "Vui lòng kiểm tra lại id hoặc link",
+          detail: "page did not contain expected Locket marker or profile image",
+        });
+      }
+
       if (img) {
         avatarUrl = img.startsWith("http") ? img : `https://locket.cam${img}`;
       }
-    } catch {
-      return res.status(400).json({ error: "Vui lòng kiểm tra lại id hoặc link" });
+    } catch (err) {
+      // Include the error message for debugging (do not expose stack trace)
+      console.error("api/links: fetch error", err && err.message ? err.message : err);
+      return res.status(400).json({
+        error: "Vui lòng kiểm tra lại id hoặc link",
+        detail: err && err.message ? err.message : String(err),
+      });
     }
 
     const existing = await Link.findOne({ link: normalizedLink });
