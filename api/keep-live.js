@@ -5,6 +5,7 @@ import Cors from "cors";
 const cors = Cors({
   origin: ["https://fe-locket-tdtu.vercel.app", "http://localhost:5173", "https://locket-tdtu.wangtech.top"],
   methods: ["GET", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"], // thêm dòng này tránh lỗi 403 không có Authorization
   credentials: true,
 });
 
