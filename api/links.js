@@ -1,12 +1,14 @@
-import express from "express";
-import cheerio from "cheerio";
-import Link from "../models/Link.js";
-import connectDB from "../lib/mongodb.js";
-import { verifyAuth } from "../middleware/auth.mjs";
+const express = require('express');
+const cheerio = require('cheerio');
+const Link = require('../models/Link');
+const connectDB = require('../lib/mongodb');
+// require the CommonJS auth middleware; verifyAuth may be the function or a property
+const authModule = require('../middleware/auth');
+const verifyAuth = authModule.verifyAuth || authModule;
 
 const router = express.Router();
 
-const PASSWORD_RE = /^[A-Za-z0-9](?:25|24|23|22|21)[A-Za-z0-9]\d{4}$/;
+const PASSWORD_RE = /^[A-Za-z](?:25|24|23|22|21)[A-Za-z]\d{4}$/;
 
 router.post("/links", verifyAuth, async (req, res) => {
   const { password, link, name } = req.body;
@@ -81,4 +83,4 @@ router.post("/links", verifyAuth, async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;
