@@ -2,7 +2,7 @@ import express from "express";
 import cheerio from "cheerio";
 import Link from "../models/Link.js";
 import connectDB from "../lib/mongodb.js";
-import { verifyAuth } from "../middleware/auth.js";
+import { verifyAuth } from "../middleware/auth.mjs";
 
 const router = express.Router();
 
