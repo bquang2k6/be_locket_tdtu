@@ -1,115 +1,84 @@
-// app/api/links/route.js
-import { NextResponse } from "next/server";
+import express from "express";
 import cheerio from "cheerio";
-import Link from "@/models/Link";
-import connectDB from "@/lib/mongoose";
-import { verifyAuth } from "@/middleware/auth";
+import Link from "../models/Link.js";
+import connectDB from "../lib/mongodb.js";
+import { verifyAuth } from "../middleware/auth.js";
+
+const router = express.Router();
 
 const PASSWORD_RE = /^[A-Za-z0-9](?:25|24|23|22|21)[A-Za-z0-9]\d{4}$/;
 
-export async function POST(req) {
-  try {
-    // ✅ connect DB
-    await connectDB();
+router.post("/links", verifyAuth, async (req, res) => {
+  const { password, link, name } = req.body;
 
-    // ✅ check token
-    const user = verifyAuth(req);
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!password || !link || !name) {
+    return res.status(400).json({ error: "password, link và name là bắt buộc" });
+  }
 
-    const { password, link, name } = await req.json();
+  if (!PASSWORD_RE.test(password)) {
+    return res.status(400).json({ error: "Sai định dạng mssv hoặc sai mssv" });
+  }
 
-    if (!password || !link || !name) {
-      return NextResponse.json(
-        { error: "password, link và name là bắt buộc" },
-        { status: 400 }
-      );
-    }
-
-    if (!PASSWORD_RE.test(password)) {
-      return NextResponse.json(
-        { error: "Sai định dạng mssv hoặc sai mssv" },
-        { status: 400 }
-      );
-    }
-
-    // 🔹 Normalize link
-    let normalizedLink = String(link).trim();
-    if (!/^https?:\/\//i.test(normalizedLink)) {
-      normalizedLink = "https://locket.cam/" + normalizedLink.replace(/^\/+/, "");
-    } else {
-      try {
-        const u = new URL(normalizedLink);
-        if (u.hostname !== "locket.cam") {
-          return NextResponse.json(
-            { error: "Link must be on locket.cam" },
-            { status: 400 }
-          );
-        }
-      } catch (e) {
-        return NextResponse.json(
-          { error: "Sai định dạng link locket" },
-          { status: 400 }
-        );
-      }
-    }
-
-    // 🔹 Crawl avatar
-    let avatarUrl = null;
+  // 🔹 Normalize link
+  let normalizedLink = String(link).trim();
+  if (!/^https?:\/\//i.test(normalizedLink)) {
+    normalizedLink = "https://locket.cam/" + normalizedLink.replace(/^\/+/, "");
+  } else {
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
-
-      const resp = await fetch(normalizedLink, { signal: controller.signal });
-      clearTimeout(timeout);
-
-      if (!resp.ok) {
-        return NextResponse.json(
-          { error: "Vui lòng kiểm tra lại id hoặc link" },
-          { status: 400 }
-        );
+      const u = new URL(normalizedLink);
+      if (u.hostname !== "locket.cam") {
+        return res.status(400).json({ error: "Link must be on locket.cam" });
       }
+    } catch (e) {
+      return res.status(400).json({ error: "Sai định dạng link locket" });
+    }
+  }
 
-      const text = await resp.text();
-      if (!/Add me on Locket/i.test(text)) {
-        return NextResponse.json(
-          { error: "Vui lòng kiểm tra lại id hoặc link" },
-          { status: 400 }
-        );
-      }
+  // 🔹 Crawl avatar
+  let avatarUrl = null;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
 
-      const $ = cheerio.load(text);
-      const img = $(".profile-pic-img").attr("src");
-      if (img) {
-        avatarUrl = img.startsWith("http") ? img : `https://locket.cam${img}`;
-      }
-    } catch (err) {
-      console.error("Fetch error:", err?.message || err);
-      return NextResponse.json(
-        { error: "Vui lòng kiểm tra lại id hoặc link" },
-        { status: 400 }
-      );
+    const resp = await fetch(normalizedLink, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (!resp.ok) {
+      return res.status(400).json({ error: "Vui lòng kiểm tra lại id hoặc link" });
     }
 
-    // 🔹 Check duplicate link
+    const text = await resp.text();
+    if (!/Add me on Locket/i.test(text)) {
+      return res.status(400).json({ error: "Vui lòng kiểm tra lại id hoặc link" });
+    }
+
+    const $ = cheerio.load(text);
+    const img = $(".profile-pic-img").attr("src");
+    if (img) {
+      avatarUrl = img.startsWith("http") ? img : `https://locket.cam${img}`;
+    }
+  } catch (err) {
+    console.error("Fetch error:", err?.message || err);
+    return res.status(400).json({ error: "Vui lòng kiểm tra lại id hoặc link" });
+  }
+
+  try {
+    // 🔹 Check duplicate
     const existing = await Link.findOne({ link: normalizedLink });
     if (existing) {
-      return NextResponse.json(
-        { error: "Link này đã tồn tại, không thể thêm lại" },
-        { status: 400 }
-      );
+      return res.status(400).json({ error: "Link này đã tồn tại, không thể thêm lại" });
     }
 
     const doc = new Link({ link: normalizedLink, password, name, avatar: avatarUrl });
     await doc.save();
 
-    return NextResponse.json(
-      { id: doc._id, link: doc.link, name: doc.name, avatar: doc.avatar },
-      { status: 201 }
-    );
+    return res
+      .status(201)
+      .json({ id: doc._id, link: doc.link, name: doc.name, avatar: doc.avatar });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return res.status(500).json({ error: "Server error" });
   }
-}
+});
+
+export default router;
