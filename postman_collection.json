@@ -1,0 +1,98 @@
+{
+  "info": {
+    "name": "TDTU Locket - Basic API Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "tdtu-locket-collection"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/login", "host": ["{{baseUrl}}"], "path": ["login"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"password\":\"A25b1234\"}"
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+              "var json = pm.response.json();",
+              "pm.test('token exists', function () { pm.expect(json.token).to.be.a('string'); });",
+              "pm.environment.set('token', json.token);",
+              "console.log('Stored token in environment variable: token');"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create Link (protected)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/links", "host": ["{{baseUrl}}"], "path": ["links"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"password\":\"A25b1234\",\"link\":\"https://example.com\"}"
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 201 or 200', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
+              "var json = pm.response.json();",
+              "pm.test('Returned id and link', function () { pm.expect(json.id || json._id).to.exist; pm.expect(json.link).to.exist; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "List Links",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/links", "host": ["{{baseUrl}}"], "path": ["links"] }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+              "var json = pm.response.json();",
+              "pm.test('Response is an array', function () { pm.expect(json).to.be.an('array'); });",
+              "pm.test('Items do not contain password field', function () { if (json.length>0) { pm.expect(json[0].password).to.not.exist; } });"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
