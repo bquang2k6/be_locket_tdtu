@@ -1,22 +1,32 @@
 const express = require("express");
 const cors = require("cors");
+const serverless = require("serverless-http");
 
 const app = express();
 
-// Cho phép tất cả origin (tạm thời)
-app.use(cors());
-
-// Hoặc chỉ cho frontend domain của bạn
+// Cấu hình CORS: chỉ cho FE domain của bạn
 app.use(
   cors({
-    origin: ["https://fe-locket-tdtu.vercel.app"], // domain frontend
+    origin: ["https://fe-locket-tdtu.vercel.app", "http://localhost:5173"], 
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
 );
-// if (require.main === module) {
-//   const PORT = process.env.PORT || 3000;
-//   app.listen(PORT, () => console.log(`Server running on ${PORT}`));
-// }
-module.exports = app;                 // để chạy local bằng node
-module.exports.handler = serverless(app); // để deploy trên Vercel
+
+// Middleware parse JSON
+app.use(express.json());
+
+// Route test
+app.get("/", (req, res) => {
+  res.json({ message: "API chạy ngon rồi 🚀" });
+});
+
+// Local run
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+}
+
+// Export cho Vercel (serverless)
+module.exports = app;
+module.exports.handler = serverless(app);
