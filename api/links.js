@@ -1,4 +1,5 @@
 import dbConnect from "../lib/mongodb.js";
+import applyCors from "../lib/cors.js";
 import Link from "../models/Link.js";
 import jwt from "jsonwebtoken";
 import cheerio from "cheerio";
@@ -7,7 +8,8 @@ const PASSWORD_RE = /^[A-Za-z0-9](?:25|24|23|22|21)[A-Za-z0-9]\d{4}$/;
 
 export default async function handler(req, res) {
   await dbConnect();
-  await applyCors(req, res);  // 👉 luôn chạy CORS trước
+  // Always run CORS first
+  await applyCors(req, res);
 
   if (req.method === "POST") {
     // Check JWT
