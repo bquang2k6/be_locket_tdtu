@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const linkSchema = new mongoose.Schema({
   name: { type: String, required: true }, // thêm trường name
@@ -10,4 +10,4 @@ const linkSchema = new mongoose.Schema({
   } //  Thêm avatar
 }, { timestamps: true });
 
-module.exports = mongoose.model('Link', linkSchema);
+export default mongoose.model('Link', linkSchema);

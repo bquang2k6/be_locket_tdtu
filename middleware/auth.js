@@ -1,6 +1,7 @@
-const jwt = require('jsonwebtoken');
 
-function verifyAuth(req, res, next) {
+import jwt from 'jsonwebtoken';
+
+export function verifyAuth(req, res, next) {
   const authHeader = req.headers['authorization'] || req.headers['Authorization'];
   if (!authHeader) return res.status(401).json({ error: 'Missing Authorization header' });
 
@@ -15,6 +16,4 @@ function verifyAuth(req, res, next) {
   });
 }
 
-// Export for CommonJS consumers (require) and set a property so ESM named imports can pick it up from the synthetic namespace
-module.exports = verifyAuth;
-module.exports.verifyAuth = verifyAuth;
+export default verifyAuth;
