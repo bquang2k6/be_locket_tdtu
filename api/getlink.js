@@ -1,5 +1,6 @@
 import fetch from "node-fetch";
 import Cors from "cors";
+import mongoose from "mongoose";
 import { jwtDecode } from "jwt-decode";
 
 // ⚙️ Cấu hình CORS
@@ -23,9 +24,32 @@ function runMiddleware(req, res, fn) {
   });
 }
 
-// ⚙️ Bộ nhớ cache tạm (RAM)
-let authToken = null;
-let tokenTimestamp = 0;
+// ⚙️ Kết nối MongoDB (dùng cache để tránh reconnect)
+const MONGODB_URI = process.env.MONGODB_URI;
+if (!MONGODB_URI) throw new Error("❌ Thiếu biến môi trường MONGODB_URI");
+
+let cached = global.mongoose;
+if (!cached) cached = global.mongoose = { conn: null, promise: null };
+
+async function dbConnect() {
+  if (cached.conn) return cached.conn;
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    }).then((mongoose) => mongoose);
+  }
+  cached.conn = await cached.promise;
+  return cached.conn;
+}
+
+// ⚙️ Model Token
+const TokenSchema = new mongoose.Schema({
+  name: { type: String, required: true, unique: true },
+  value: { type: String, required: true },
+  updatedAt: { type: Date, default: Date.now },
+});
+const Token = mongoose.models.Token || mongoose.model("Token", TokenSchema);
 
 // ✅ Kiểm tra token còn hạn không
 function isTokenExpired(token, bufferSeconds = 300) {
@@ -41,12 +65,14 @@ function isTokenExpired(token, bufferSeconds = 300) {
   }
 }
 
-// ✅ Hàm lấy token (và cache)
+// ✅ Lấy token từ MongoDB hoặc login mới
 async function getAuthToken() {
-  const now = Date.now();
-  if (authToken && !isTokenExpired(authToken)) {
-    console.log("✅ Token còn hạn, dùng lại token cũ.");
-    return authToken;
+  await dbConnect();
+
+  let tokenDoc = await Token.findOne({ name: "locket" });
+  if (tokenDoc && tokenDoc.value && !isTokenExpired(tokenDoc.value)) {
+    console.log("✅ Token trong MongoDB còn hạn, dùng lại.");
+    return tokenDoc.value;
   }
 
   console.log("🔄 Token hết hạn hoặc chưa có, đang đăng nhập lại...");
@@ -54,22 +80,36 @@ async function getAuthToken() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      email: "42phambaquangl9h@gmail.com",
-      password: "phambaquang",
+      email: process.env.LOCKET_EMAIL,
+      password: process.env.LOCKET_PASSWORD,
     }),
   });
 
   const loginText = await loginRes.text();
+  let loginData;
   try {
-    const loginData = JSON.parse(loginText);
-    if (!loginData.idToken) throw new Error("Không lấy được idToken từ login API");
-    authToken = loginData.idToken;
-    tokenTimestamp = now;
-    return authToken;
-  } catch (err) {
-    console.error("❌ Lỗi khi parse login response:", loginText);
-    throw err;
+    loginData = JSON.parse(loginText);
+  } catch {
+    console.error("❌ API login không trả JSON hợp lệ:", loginText);
+    throw new Error("API login không hợp lệ");
   }
+
+  if (!loginData.idToken) throw new Error("Không lấy được idToken từ login API");
+
+  const newToken = loginData.idToken;
+
+  // 💾 Lưu token mới vào MongoDB
+  if (tokenDoc) {
+    tokenDoc.value = newToken;
+    tokenDoc.updatedAt = Date.now();
+    await tokenDoc.save();
+    console.log("💾 Đã cập nhật token mới vào MongoDB");
+  } else {
+    await Token.create({ name: "locket", value: newToken });
+    console.log("💾 Đã tạo token mới trong MongoDB");
+  }
+
+  return newToken;
 }
 
 // ✅ Lấy invite_token từ link
@@ -115,7 +155,7 @@ export default async function handler(req, res) {
         inviteToken,
         result: userData.result?.data?.user || userData,
       });
-    } catch (err) {
+    } catch {
       console.error("⚠️ API trả về không phải JSON:", text);
       return res.status(500).json({
         error: "API gốc không trả về JSON hợp lệ",
